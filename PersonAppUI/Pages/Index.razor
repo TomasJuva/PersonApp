@@ -1,0 +1,173 @@
+﻿@page "/"
+@using PersonAppLibrary.DataAccess
+@using PersonAppLibrary.Models
+@using PersonAppLibrary.Types
+@using PersonAppUI.Models
+@using BlazorInputFile
+@using PersonAppUI.Services
+@using Microsoft.Extensions.Logging
+
+@inject Microsoft.Extensions.Localization.IStringLocalizer<App> localizer
+@inject IFileService fileService
+@inject IJSRuntime jSRuntime
+@inject IPersonData personData
+@inject ILogger<Index> logger
+
+<PageTitle>@localizer["RegistrationForm"]</PageTitle>
+
+<h1 class="mb-4">@localizer["RegistrationForm"]</h1>
+
+<div>
+  <EditForm Model="@person" OnValidSubmit="HandleOnValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <p>
+      <label class="label">
+        @localizer["FirstName"]
+      </label>
+      <InputText id="firstName" @bind-Value="person.FirstName" />
+    </p>
+    <p>
+      <label class="label">
+        @localizer["LastName"]
+      </label>
+      <InputText id="lastName" @bind-Value="person.LastName" />
+    </p>
+    <p>
+      <label class="label">
+        @localizer["PersonNumber"]
+      </label>
+      <InputText id="personNumber" @bind-Value="person.PersonNumber" />
+      <label>
+        @localizer["NoPersonNumber"]
+      </label>
+      <InputCheckbox id="noPersonNumber" @bind-Value="person.NoPersonNumber" />
+    </p>
+    <p>
+      <label class="label">
+        @localizer["BirthDay"]
+      </label>
+      <InputDate id="birthDay" @bind-Value="person.BirthDay" />
+    </p>
+    <p>
+      <label class="label">
+        @localizer["Sex"]
+      </label>
+      <InputSelect id="sex" @bind-Value="person.Sex">
+        <option value="">@localizer["Select"]...</option>
+        @{
+          foreach (var i in Enum.GetValues(typeof(Sex)))
+          {
+            <option value="@i">@localizer[$"{(Sex)i}"]</option>
+          }
+        }
+      </InputSelect>
+    </p>
+    <p>
+      <label class="label">
+        @localizer["Email"]
+      </label>
+      <InputText id="email" @bind-Value="person.Email" />
+    </p>
+    <p>
+      <label class="label">
+        @localizer["Nationality"]
+      </label>
+      <InputSelect id="nationality" @bind-Value="person.Nationality">
+        <option value="">@localizer["Select"]...</option>
+        @{
+          foreach (var i in Enum.GetValues(typeof(Nationality)))
+          {
+            <option value="@i">@localizer[$"{(Nationality)i}"]</option>
+          }
+        }
+      </InputSelect>
+    </p>
+    <p>
+      <label class="label">
+        @localizer["Gdpr"]
+      </label>
+      <InputCheckbox id="gdpr" @bind-Value="person.Gdpr" />
+
+      @if (fileClass.Files != null && fileClass.Files.Count > 0)
+      {
+        FileClass? file = fileClass.Files.FirstOrDefault();
+        if (file is not null)
+        {
+          <a href="" @onclick="@(e => ShowOnNewTab(@file.FileId))" class="ms-2">@localizer["Read more"]</a>
+        }
+      }
+
+    </p>
+    <button id="createButton" class="btn btn-primary" type="submit">@localizer["Submit"]</button>
+  </EditForm>
+</div>
+
+@code {
+  public FileClass fileClass = new();
+  public string? pdfName = "";
+  private PersonModel person = new PersonModel();
+
+  private async Task HandleOnValidSubmit()
+  {
+    PersonDbModel personToSave = this.ConvertPersonToPersonDb(person);
+    try
+    {
+      this.logger.LogInformation($"Create person: {personToSave.FirstName} {personToSave.LastName} succeeded");
+      await personData.InsertPerson(personToSave);
+
+      person.FirstName = null;
+      person.LastName = null;
+      person.PersonNumber = null;
+      person.NoPersonNumber = false;
+      person.BirthDay = DateTime.Now;
+      person.Sex = null;
+      person.Email = null;
+      person.Nationality = null;
+      person.Gdpr = false;
+    }
+    catch (Exception ex)
+    {
+      this.logger.LogError(ex, $"Create person: {personToSave.FirstName} {personToSave.LastName} failed.");
+    }
+  }
+
+  /// <summary>
+  /// Open requested pdf file in new tab.
+  /// </summary>
+  /// <param name="fileId"></param>
+  private void ShowOnNewTab(int fileId)
+  {
+    pdfName = fileClass.Files?.FirstOrDefault()?.Name;
+    jSRuntime.InvokeVoidAsync("OpenNewTab", pdfName);
+  }
+
+  /// <summary>
+  /// Fill Files property.
+  /// </summary>
+  protected override void OnInitialized()
+  {
+    fileClass.Files = fileService.GetAllPDFs();
+  }
+
+  /// <summary>
+  /// Convert PersonModel to PersonDbModel
+  /// </summary>
+  /// <param name="person"></param>
+  /// <returns></returns>
+  private PersonDbModel ConvertPersonToPersonDb(PersonModel person)
+  {
+    PersonDbModel personDb = new();
+    personDb.FirstName = person.FirstName;
+    personDb.LastName = person.LastName;
+    personDb.PersonNumber = person.PersonNumber;
+    personDb.NoPersonNumber = person.NoPersonNumber;
+    personDb.BirthDay = person.BirthDay;
+    personDb.Sex = (int?)person.Sex;
+    personDb.Email = person.Email;
+    personDb.Nationality = (int?)person.Nationality;
+    personDb.Gdpr = person.Gdpr;
+
+    return personDb;
+  }
+}

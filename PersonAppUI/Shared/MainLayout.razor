@@ -1,0 +1,17 @@
+﻿@inherits LayoutComponentBase
+@inject Microsoft.Extensions.Localization.IStringLocalizer<App> localizer
+
+
+<PageTitle>PersonAppUI</PageTitle>
+
+<div class="page">
+    <main>
+        <div class="top-row px-4">
+          <span class="pr-2">@localizer["Language"]</span><ChooseLanguage />
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
